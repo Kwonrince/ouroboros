@@ -67,7 +67,7 @@ When the user invokes this skill:
 
    b. **Update Claude Code plugin**:
    ```bash
-   claude plugin install ouroboros@ouroboros
+   claude plugin update ouroboros@ouroboros
    ```
 
    c. **Verify**:
