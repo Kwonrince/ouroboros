@@ -186,10 +186,7 @@ class LevelCoordinator:
                 tools=COORDINATOR_TOOLS,
                 system_prompt=COORDINATOR_SYSTEM_PROMPT,
             ):
-                if (
-                    message.resume_handle is not None
-                    and message.resume_handle.native_session_id
-                ):
+                if message.resume_handle is not None and message.resume_handle.native_session_id:
                     session_id = message.resume_handle.native_session_id
                 elif message.data.get("session_id"):
                     session_id = message.data["session_id"]

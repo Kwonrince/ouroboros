@@ -498,11 +498,7 @@ class ClaudeAgentAdapter:
                 data={
                     "subtype": "error",
                     "error_type": type(last_error).__name__,
-                    **(
-                        {"session_id": current_session_id}
-                        if current_session_id
-                        else {}
-                    ),
+                    **({"session_id": current_session_id} if current_session_id else {}),
                 },
                 resume_handle=current_runtime_handle,
             )
