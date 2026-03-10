@@ -154,7 +154,9 @@ class JobManager:
                 job_id,
                 {
                     "status": terminal_status.value,
-                    "message": "Job complete" if terminal_status == JobStatus.COMPLETED else "Job cancelled",
+                    "message": "Job complete"
+                    if terminal_status == JobStatus.COMPLETED
+                    else "Job cancelled",
                     "result_text": getattr(result, "text_content", str(result))[:20_000],
                     "result_meta": _safe_meta(getattr(result, "meta", {})),
                     "is_error": bool(getattr(result, "is_error", False)),
@@ -201,7 +203,11 @@ class JobManager:
                 total = data.get("total_count")
                 current_phase = data.get("current_phase") or "Working"
                 detail = data.get("activity_detail") or data.get("activity") or ""
-                progress = f"{completed}/{total} ACs" if completed is not None and total is not None else ""
+                progress = (
+                    f"{completed}/{total} ACs"
+                    if completed is not None and total is not None
+                    else ""
+                )
                 return " | ".join(part for part in (current_phase, detail, progress) if part)
 
         if snapshot.links.session_id:
@@ -209,10 +215,7 @@ class JobManager:
             session = await repo.reconstruct_session(snapshot.links.session_id)
             if session.is_ok:
                 tracker = session.value
-                return (
-                    f"Session {tracker.status.value}"
-                    f" | messages={tracker.messages_processed}"
-                )
+                return f"Session {tracker.status.value} | messages={tracker.messages_processed}"
 
         if snapshot.links.lineage_id:
             events = await self._event_store.query_events(
@@ -220,11 +223,7 @@ class JobManager:
                 limit=10,
             )
             latest = next(
-                (
-                    e
-                    for e in events
-                    if e.type.startswith("lineage.")
-                ),
+                (e for e in events if e.type.startswith("lineage.")),
                 None,
             )
             if latest is not None:

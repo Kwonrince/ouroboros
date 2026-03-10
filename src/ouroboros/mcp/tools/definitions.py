@@ -2844,7 +2844,9 @@ async def _render_job_snapshot(snapshot: JobSnapshot, event_store: EventStore) -
                     f"**Current Step**: Gen {latest.data.get('generation_number')} {latest.data.get('phase')}"
                 )
             elif latest.type == "lineage.generation.completed":
-                lines.append(f"**Current Step**: Gen {latest.data.get('generation_number')} completed")
+                lines.append(
+                    f"**Current Step**: Gen {latest.data.get('generation_number')} completed"
+                )
             elif latest.type == "lineage.generation.failed":
                 lines.append(
                     f"**Current Step**: Gen {latest.data.get('generation_number')} failed at {latest.data.get('phase')}"

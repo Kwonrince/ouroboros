@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from ouroboros.mcp.tools.definitions import (
     OUROBOROS_TOOLS,
-    CancelJobHandler,
     CancelExecutionHandler,
+    CancelJobHandler,
     EvaluateHandler,
     EvolveRewindHandler,
     EvolveStepHandler,

@@ -488,8 +488,8 @@ def create_ouroboros_server(
     from ouroboros.mcp.job_manager import JobManager
     from ouroboros.mcp.tools.definitions import (
         ACDashboardHandler,
-        CancelJobHandler,
         CancelExecutionHandler,
+        CancelJobHandler,
         EvaluateHandler,
         EvolveRewindHandler,
         EvolveStepHandler,
