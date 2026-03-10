@@ -292,6 +292,7 @@ class EvolutionaryLoop:
                 lineage,
                 result.wonder_output,
                 latest_evaluation=result.evaluation_summary,
+                validation_output=result.validation_output,
             )
 
             if signal.converged:
@@ -578,6 +579,7 @@ class EvolutionaryLoop:
             lineage,
             result.wonder_output,
             latest_evaluation=result.evaluation_summary,
+            validation_output=result.validation_output,
         )
 
         action = StepAction.CONTINUE
@@ -888,10 +890,16 @@ class EvolutionaryLoop:
                         validation_output = f"Validation error: {validation_result.error}"
                 else:
                     validation_output = str(validation_result)
-                logger.info(
-                    "evolution.generation.validated",
-                    extra={"generation": generation_number},
-                )
+                if validation_output and "skipped" in validation_output.lower():
+                    logger.warning(
+                        "evolution.generation.validation_skipped",
+                        extra={"generation": generation_number, "output": validation_output},
+                    )
+                else:
+                    logger.info(
+                        "evolution.generation.validated",
+                        extra={"generation": generation_number},
+                    )
             except Exception as e:
                 logger.warning(
                     "evolution.validation.failed",
