@@ -755,15 +755,15 @@ class TestInterviewHandlerConsultingPersonas:
             mock_engine.ask_next_question = AsyncMock(
                 return_value=MagicMock(is_ok=True, is_err=False, value="Question?")
             )
-            mock_engine.save_state = AsyncMock(
-                return_value=MagicMock(is_ok=True, is_err=False)
-            )
+            mock_engine.save_state = AsyncMock(return_value=MagicMock(is_ok=True, is_err=False))
             MockEngine.return_value = mock_engine
 
-            await handler.handle({
-                "initial_context": "Build a CLI",
-                "consulting_personas": "contrarian,architect",
-            })
+            await handler.handle(
+                {
+                    "initial_context": "Build a CLI",
+                    "consulting_personas": "contrarian,architect",
+                }
+            )
 
             MockEngine.assert_called_once()
             call_kwargs = MockEngine.call_args[1]
@@ -788,9 +788,7 @@ class TestInterviewHandlerConsultingPersonas:
             mock_engine.ask_next_question = AsyncMock(
                 return_value=MagicMock(is_ok=True, is_err=False, value="Question?")
             )
-            mock_engine.save_state = AsyncMock(
-                return_value=MagicMock(is_ok=True, is_err=False)
-            )
+            mock_engine.save_state = AsyncMock(return_value=MagicMock(is_ok=True, is_err=False))
             MockEngine.return_value = mock_engine
 
             await handler.handle({"initial_context": "Build a CLI"})

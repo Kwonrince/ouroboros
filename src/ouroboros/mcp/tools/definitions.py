@@ -1163,9 +1163,7 @@ class InterviewHandler:
         initial_context = arguments.get("initial_context")
         session_id = arguments.get("session_id")
         answer = arguments.get("answer")
-        consulting_personas = self._parse_consulting_personas(
-            arguments.get("consulting_personas")
-        )
+        consulting_personas = self._parse_consulting_personas(arguments.get("consulting_personas"))
 
         # Use injected or create interview engine
         engine = self.interview_engine or InterviewEngine(

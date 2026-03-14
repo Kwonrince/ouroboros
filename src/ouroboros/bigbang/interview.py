@@ -529,8 +529,7 @@ class InterviewEngine:
             ]
             persona_data = load_persona_prompt_data(persona_name)
             approach_lines = "\n".join(
-                f"  {i}. {instr}"
-                for i, instr in enumerate(persona_data.approach_instructions, 1)
+                f"  {i}. {instr}" for i, instr in enumerate(persona_data.approach_instructions, 1)
             )
             dynamic_header += (
                 f"\n\n## Consulting Persona Lens: {persona_name.upper()}\n"
