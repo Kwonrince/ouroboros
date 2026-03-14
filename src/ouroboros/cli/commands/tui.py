@@ -104,7 +104,13 @@ def _run_slt_backend(db_path: Path) -> None:
         raise typer.Exit(1)
 
     args = [bin_path, "monitor", "--db-path", str(db_path)]
-    os.execv(bin_path, args)
+    if os.name == "nt":
+        import subprocess
+        import sys
+
+        sys.exit(subprocess.call(args))
+    else:
+        os.execv(bin_path, args)
 
 
 __all__ = ["app"]

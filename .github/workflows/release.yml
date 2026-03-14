@@ -61,6 +61,8 @@ jobs:
             target: x86_64-apple-darwin
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout code
@@ -74,15 +76,21 @@ jobs:
       - name: Build release binary
         run: cargo build --manifest-path crates/ouroboros-tui/Cargo.toml --release --target ${{ matrix.target }}
 
-      - name: Rename binary
+      - name: Rename binary (unix)
+        if: runner.os != 'Windows'
         run: |
           cp crates/ouroboros-tui/target/${{ matrix.target }}/release/ouroboros-tui ouroboros-tui-${{ matrix.target }}
+
+      - name: Rename binary (windows)
+        if: runner.os == 'Windows'
+        run: |
+          cp crates/ouroboros-tui/target/${{ matrix.target }}/release/ouroboros-tui.exe ouroboros-tui-${{ matrix.target }}.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ouroboros-tui-${{ matrix.target }}
-          path: ouroboros-tui-${{ matrix.target }}
+          path: ouroboros-tui-${{ matrix.target }}*
 
   attach-tui-binaries:
     name: Attach TUI Binaries to Release
