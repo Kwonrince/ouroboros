@@ -10,9 +10,12 @@ from typing import Any
 from uuid import uuid4
 
 from ouroboros.events.base import BaseEvent
+from ouroboros.observability.logging import get_logger
 from ouroboros.orchestrator.runner import request_cancellation
 from ouroboros.orchestrator.session import SessionRepository
 from ouroboros.persistence.event_store import EventStore
+
+log = get_logger(__name__)
 
 
 class JobStatus(StrEnum):
@@ -75,7 +78,7 @@ class JobManager:
 
     _monitor_initial_interval_seconds = 1.0
     _monitor_max_interval_seconds = 5.0
-    _monitor_heartbeat_seconds = 5.0
+    _monitor_heartbeat_seconds = 60.0
 
     def __init__(self, event_store: EventStore | None = None) -> None:
         self._event_store = event_store or EventStore()
@@ -199,6 +202,12 @@ class JobManager:
                 and now - last_emit_at >= timedelta(seconds=self._monitor_heartbeat_seconds)
             )
             if message and (message != last_message or heartbeat_due):
+                if heartbeat_due and message == last_message:
+                    log.debug(
+                        "mcp.job.heartbeat_emitted",
+                        job_id=job_id,
+                        execution_id=snapshot.links.execution_id,
+                    )
                 await self.update_status(job_id, snapshot.status, message)
                 last_message = message
                 last_emit_at = now
