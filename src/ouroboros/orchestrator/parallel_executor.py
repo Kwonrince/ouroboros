@@ -28,13 +28,13 @@ Example:
 from __future__ import annotations
 
 import asyncio
-import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 import json
 import platform
 import re
 import subprocess
+import time
 from typing import TYPE_CHECKING, Any
 
 import anyio
