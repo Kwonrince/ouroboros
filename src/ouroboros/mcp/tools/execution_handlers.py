@@ -30,6 +30,7 @@ from ouroboros.mcp.types import (
     MCPToolResult,
     ToolInputType,
 )
+from ouroboros.config.models import get_config_dir
 from ouroboros.orchestrator import create_agent_runtime
 from ouroboros.orchestrator.runner import OrchestratorRunner
 from ouroboros.orchestrator.session import SessionRepository, SessionStatus
@@ -139,28 +140,14 @@ class ExecuteSeedHandler:
         seed_content = arguments.get("seed_content")
         seed_path = arguments.get("seed_path")
         if not seed_content and seed_path:
-            seed_candidate = Path(str(seed_path)).expanduser()
-            if not seed_candidate.is_absolute():
-                seed_candidate = resolved_cwd / seed_candidate
-
-            # Allow seeds from both cwd and the global ~/.ouroboros/ directory
-            ouroboros_home = Path.home() / ".ouroboros"
-            valid_cwd, _ = InputValidator.validate_path_containment(
-                seed_candidate,
+            seed_path_result = self._resolve_seed_path(
+                seed_path,
                 resolved_cwd,
+                tool_name="ouroboros_execute_seed",
             )
-            valid_home, _ = InputValidator.validate_path_containment(
-                seed_candidate,
-                ouroboros_home,
-            )
-            if not valid_cwd and not valid_home:
-                return Result.err(
-                    MCPToolError(
-                        f"Seed path escapes allowed directories: "
-                        f"{seed_candidate} is not under {resolved_cwd} or {ouroboros_home}",
-                        tool_name="ouroboros_execute_seed",
-                    )
-                )
+            if seed_path_result.is_err:
+                return Result.err(seed_path_result.error)
+            seed_candidate = seed_path_result.value
 
             try:
                 seed_content = await asyncio.to_thread(
@@ -404,7 +391,7 @@ class ExecuteSeedHandler:
                         "launched": True,
                         "status": "running",
                         "runtime_backend": runtime_backend,
-                        "llm_backend": self.llm_backend,
+                        "llm_backend": resolved_llm_backend,
                         "resume_requested": bool(session_id),
                     },
                 )
@@ -424,6 +411,39 @@ class ExecuteSeedHandler:
         if isinstance(raw_cwd, str) and raw_cwd.strip():
             return Path(raw_cwd).expanduser().resolve()
         return Path.cwd()
+
+    @staticmethod
+    def _allowed_seed_roots(cwd: Path) -> tuple[Path, ...]:
+        """Return directories allowed for seed file reads."""
+        return (cwd, get_config_dir() / "seeds")
+
+    @classmethod
+    def _resolve_seed_path(
+        cls,
+        seed_path: Any,
+        cwd: Path,
+        *,
+        tool_name: str,
+    ) -> Result[Path, MCPToolError]:
+        """Resolve and validate a seed path for intercepted execution tools."""
+        seed_candidate = Path(str(seed_path)).expanduser()
+        if not seed_candidate.is_absolute():
+            seed_candidate = cwd / seed_candidate
+
+        allowed_roots = cls._allowed_seed_roots(cwd)
+        for allowed_root in allowed_roots:
+            valid, _ = InputValidator.validate_path_containment(seed_candidate, allowed_root)
+            if valid:
+                return Result.ok(seed_candidate)
+
+        allowed_roots_text = " or ".join(str(root) for root in allowed_roots)
+        return Result.err(
+            MCPToolError(
+                f"Seed path escapes allowed directories: {seed_candidate} is not under "
+                f"{allowed_roots_text}",
+                tool_name=tool_name,
+            )
+        )
 
     @staticmethod
     def _derive_quality_bar(seed: Seed) -> str:
@@ -514,28 +534,14 @@ class StartExecuteSeedHandler:
             resolved_cwd = ExecuteSeedHandler._resolve_dispatch_cwd(
                 arguments.get("cwd"),
             )
-            seed_candidate = Path(str(seed_path)).expanduser()
-            if not seed_candidate.is_absolute():
-                seed_candidate = resolved_cwd / seed_candidate
-
-            # Allow seeds from both cwd and the global ~/.ouroboros/ directory
-            ouroboros_home = Path.home() / ".ouroboros"
-            valid_cwd, _ = InputValidator.validate_path_containment(
-                seed_candidate,
+            seed_path_result = ExecuteSeedHandler._resolve_seed_path(
+                seed_path,
                 resolved_cwd,
+                tool_name="ouroboros_start_execute_seed",
             )
-            valid_home, _ = InputValidator.validate_path_containment(
-                seed_candidate,
-                ouroboros_home,
-            )
-            if not valid_cwd and not valid_home:
-                return Result.err(
-                    MCPToolError(
-                        f"Seed path escapes allowed directories: "
-                        f"{seed_candidate} is not under {resolved_cwd} or {ouroboros_home}",
-                        tool_name="ouroboros_start_execute_seed",
-                    )
-                )
+            if seed_path_result.is_err:
+                return Result.err(seed_path_result.error)
+            seed_candidate = seed_path_result.value
 
             try:
                 seed_content = await asyncio.to_thread(seed_candidate.read_text, encoding="utf-8")
@@ -601,11 +607,13 @@ class StartExecuteSeedHandler:
         from ouroboros.providers.factory import resolve_llm_backend
 
         try:
-            runtime_backend = resolve_agent_runtime_backend()
+            runtime_backend = resolve_agent_runtime_backend(
+                self._execute_handler.agent_runtime_backend,
+            )
         except (ValueError, Exception):
             runtime_backend = "unknown"
         try:
-            llm_backend = resolve_llm_backend()
+            llm_backend = resolve_llm_backend(self._execute_handler.llm_backend)
         except (ValueError, Exception):
             llm_backend = "unknown"
 
@@ -628,6 +636,8 @@ class StartExecuteSeedHandler:
                     "execution_id": snapshot.links.execution_id,
                     "status": snapshot.status.value,
                     "cursor": snapshot.cursor,
+                    "runtime_backend": runtime_backend,
+                    "llm_backend": llm_backend,
                 },
             )
         )

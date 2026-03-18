@@ -385,6 +385,28 @@ metadata:
         assert result.value.meta["runtime_backend"] in ("claude", "codex")
         assert result.value.meta["resume_requested"] is False
 
+    async def test_handle_rejects_non_seed_file_under_ouroboros_home(self, tmp_path: Path) -> None:
+        """Seed path reads should be limited to cwd and ~/.ouroboros/seeds, not all of ~/.ouroboros/."""
+        handler = ExecuteSeedHandler()
+        fake_home = tmp_path / "fake-home"
+        credentials_file = fake_home / ".ouroboros" / "credentials.yaml"
+        credentials_file.parent.mkdir(parents=True)
+        credentials_file.write_text("secret: nope\n", encoding="utf-8")
+
+        with patch(
+            "ouroboros.mcp.tools.execution_handlers.get_config_dir",
+            return_value=fake_home / ".ouroboros",
+        ):
+            result = await handler.handle(
+                {
+                    "seed_path": str(credentials_file),
+                    "cwd": str(tmp_path / "workspace"),
+                }
+            )
+
+        assert result.is_err
+        assert "escapes allowed directories" in str(result.error)
+
     async def test_handle_launches_background_execution_with_opencode_runtime(self) -> None:
         """OpenCode selections should launch the existing orchestrator pipeline in background."""
         handler = ExecuteSeedHandler(
@@ -943,6 +965,75 @@ class TestAsyncJobHandlers:
     def test_start_execute_seed_definition_name(self) -> None:
         handler = StartExecuteSeedHandler()
         assert handler.definition.name == "ouroboros_start_execute_seed"
+
+    @pytest.mark.asyncio
+    async def test_start_execute_seed_rejects_non_seed_file_under_ouroboros_home(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Background execution should not read arbitrary files from ~/.ouroboros/."""
+        handler = StartExecuteSeedHandler()
+        fake_home = tmp_path / "fake-home"
+        credentials_file = fake_home / ".ouroboros" / "credentials.yaml"
+        credentials_file.parent.mkdir(parents=True)
+        credentials_file.write_text("secret: nope\n", encoding="utf-8")
+
+        with patch(
+            "ouroboros.mcp.tools.execution_handlers.get_config_dir",
+            return_value=fake_home / ".ouroboros",
+        ):
+            result = await handler.handle(
+                {
+                    "seed_path": str(credentials_file),
+                    "cwd": str(tmp_path / "workspace"),
+                }
+            )
+
+        assert result.is_err
+        assert "escapes allowed directories" in str(result.error)
+
+    @pytest.mark.asyncio
+    async def test_start_execute_seed_returns_resolved_backend_meta(self, tmp_path: Path) -> None:
+        """Background execution response should expose the same resolved backends in text and meta."""
+        job_snapshot = MagicMock(
+            job_id="job-123",
+            status=MagicMock(value="running"),
+            cursor="cursor-1",
+            links=MagicMock(session_id="orch-123", execution_id="exec-123"),
+        )
+
+        async def _start_job(*, runner, **kwargs):
+            runner.close()
+            return job_snapshot
+
+        mock_job_manager = MagicMock()
+        mock_job_manager.start_job = AsyncMock(side_effect=_start_job)
+        handler = StartExecuteSeedHandler(
+            job_manager=mock_job_manager,
+            execute_handler=ExecuteSeedHandler(
+                agent_runtime_backend="codex",
+                llm_backend="openai/gpt-5.4",
+            ),
+        )
+
+        with (
+            patch(
+                "ouroboros.orchestrator.runtime_factory.resolve_agent_runtime_backend",
+                return_value="codex",
+            ),
+            patch(
+                "ouroboros.providers.factory.resolve_llm_backend",
+                return_value="openai",
+            ),
+            patch.object(handler._event_store, "initialize", AsyncMock()),
+        ):
+            result = await handler.handle({"seed_content": VALID_SEED_YAML})
+
+        assert result.is_ok
+        assert "Runtime Backend: codex" in result.value.text_content
+        assert "LLM Backend: openai" in result.value.text_content
+        assert result.value.meta["runtime_backend"] == "codex"
+        assert result.value.meta["llm_backend"] == "openai"
 
     def test_job_status_definition_name(self) -> None:
         handler = JobStatusHandler()
