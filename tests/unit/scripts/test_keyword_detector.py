@@ -1,11 +1,8 @@
 """Tests for keyword-detector.py — setup gate and routing behavior."""
 
 import importlib.util
-import sys
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 # Load keyword-detector.py as a module (it uses hyphens in filename)
 _script_path = Path(__file__).resolve().parents[3] / "scripts" / "keyword-detector.py"
