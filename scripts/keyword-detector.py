@@ -14,6 +14,7 @@ Output: Modified prompt with skill suggestion appended
 
 import json
 from pathlib import Path
+import re
 import sys
 
 # Skills that work without MCP setup (bypass the setup gate)
@@ -122,13 +123,18 @@ def is_first_time() -> bool:
         return True
 
 
+def _word_boundary_match(pattern: str, text: str) -> bool:
+    """Match pattern using word boundaries to avoid false positives."""
+    return bool(re.search(r"(?:^|\b)" + re.escape(pattern) + r"(?:\b|$)", text))
+
+
 def detect_keywords(text: str) -> dict:
     """Detect keywords in user prompt text."""
     lower = text.lower().strip()
 
     for entry in KEYWORD_MAP:
         for pattern in entry["patterns"]:
-            if pattern in lower:
+            if _word_boundary_match(pattern, lower):
                 return {
                     "detected": True,
                     "keyword": pattern,

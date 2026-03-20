@@ -41,6 +41,14 @@ class TestDetectKeywords:
         assert result["detected"] is True
         assert result["suggested_skill"] == "/ouroboros:qa"
 
+    def test_qa_check_no_false_positive_on_checklist(self):
+        result = detect_keywords("make a QA checklist")
+        assert result["detected"] is False
+
+    def test_quality_check_no_false_positive_on_checklist(self):
+        result = detect_keywords("quality checklist for release")
+        assert result["detected"] is False
+
     def test_no_match(self):
         result = detect_keywords("hello world")
         assert result["detected"] is False
@@ -65,6 +73,16 @@ class TestMainGate:
     def test_qa_bypasses_setup_gate(self, _first, _mcp, capsys):
         with patch("sys.stdin") as mock_stdin:
             mock_stdin.read.return_value = "ooo qa"
+            main()
+        out = capsys.readouterr().out
+        assert "/ouroboros:setup" not in out
+        assert "/ouroboros:qa" in out
+
+    @patch.object(_mod, "is_mcp_configured", return_value=False)
+    @patch.object(_mod, "is_first_time", return_value=False)
+    def test_qa_check_alias_bypasses_setup_gate(self, _first, _mcp, capsys):
+        with patch("sys.stdin") as mock_stdin:
+            mock_stdin.read.return_value = "qa check my code"
             main()
         out = capsys.readouterr().out
         assert "/ouroboros:setup" not in out
