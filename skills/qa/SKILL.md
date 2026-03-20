@@ -38,19 +38,19 @@ The QA Judge evaluates an artifact against a quality bar and returns a structure
 
 When the user invokes this skill:
 
-### Load MCP Tools (Try first, gracefully fall back)
+### Step 0: Determine execution mode
 
-The Ouroboros MCP tools are often registered as **deferred tools** that must be explicitly loaded before use.
+This skill works in two modes. Determine which one **before** attempting any tool calls:
 
-1. Use the `ToolSearch` tool to find and load the QA MCP tool:
-   ```
-   ToolSearch query: "+ouroboros qa"
-   ```
-2. The tool will typically be named `mcp__plugin_ouroboros_ouroboros__ouroboros_qa` (with a plugin prefix). After ToolSearch returns, the tool becomes callable.
-3. If ToolSearch finds the tool, proceed with **QA Steps** below.
-4. If ToolSearch is not available (e.g., MCP not configured yet) or finds no matching tool, skip directly to the **Fallback** section — this skill is designed to work without MCP.
+- **MCP mode** — If `ToolSearch` is available, try loading the QA MCP tool:
+  ```
+  ToolSearch query: "+ouroboros qa"
+  ```
+  If found (typically named `mcp__plugin_ouroboros_ouroboros__ouroboros_qa`), proceed with **QA Steps** below.
 
-### QA Steps
+- **Fallback mode** — If `ToolSearch` is not available, or it finds no matching tool, skip directly to the **Fallback** section. This skill is designed to work without MCP setup.
+
+### QA Steps (MCP mode)
 
 1. **Determine the artifact to evaluate:**
    - If user provides a file path: Read the file with Read tool
@@ -101,13 +101,16 @@ For iterative usage, track the `qa_session_id` and `iteration_history` from the 
 2. On subsequent calls, pass `qa_session_id` and accumulated `iteration_history`
 3. Continue until verdict is `pass` or `fail`
 
+In fallback mode, generate a `qa-<uuid4_short>` session ID on the first run and maintain iteration count in conversation context to preserve the same iterative contract.
+
 ## Fallback (No MCP Server)
 
 If the MCP server is not available, adopt the `ouroboros:qa-judge` agent role directly:
 
-1. Read the agent definition from the project root: `<project-root>/agents/qa-judge.md`
-2. Follow the QA Judge framework to manually evaluate the artifact
-3. Output the verdict in the standard format:
+1. Read the canonical agent definition: `<project-root>/src/ouroboros/agents/qa-judge.md`
+   (This is the same prompt used by the MCP QA tool, ensuring consistent verdicts.)
+2. Follow the QA Judge framework to evaluate the artifact
+3. Output the verdict in the standard format (must match MCP output shape):
 
 ```
 QA Verdict [Iteration N]

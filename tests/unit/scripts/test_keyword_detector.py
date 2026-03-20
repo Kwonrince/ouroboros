@@ -90,6 +90,16 @@ class TestMainGate:
 
     @patch.object(_mod, "is_mcp_configured", return_value=False)
     @patch.object(_mod, "is_first_time", return_value=False)
+    def test_quality_check_alias_bypasses_setup_gate(self, _first, _mcp, capsys):
+        with patch("sys.stdin") as mock_stdin:
+            mock_stdin.read.return_value = "quality check please"
+            main()
+        out = capsys.readouterr().out
+        assert "/ouroboros:setup" not in out
+        assert "/ouroboros:qa" in out
+
+    @patch.object(_mod, "is_mcp_configured", return_value=False)
+    @patch.object(_mod, "is_first_time", return_value=False)
     def test_non_bypass_skill_redirects_to_setup(self, _first, _mcp, capsys):
         with patch("sys.stdin") as mock_stdin:
             mock_stdin.read.return_value = "ooo run"
