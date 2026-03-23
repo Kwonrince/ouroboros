@@ -282,15 +282,18 @@ def _ensure_cursor_auth(cursor_agent_path: str) -> None:
 def _setup_cursor(cursor_agent_path: str) -> None:
     """Configure Ouroboros for the Cursor Agent runtime.
 
-    No config.yaml needed — runtime is auto-detected from host
-    environment variables at execution time. Setup only registers
-    the MCP server. Authentication is handled by cursor-agent ACP
-    at runtime.
+    Registers the MCP server in ~/.cursor/mcp.json with
+    OUROBOROS_LLM_BACKEND=cursor so the server uses ACP
+    for LLM calls (Cursor plan, no API key needed).
+
+    If Claude Code plugin is also installed, advises the user
+    to disable the plugin MCP in Cursor Settings to avoid
+    duplicate tool registrations.
     """
     print_success(f"Cursor Agent runtime ready (CLI: {cursor_agent_path})")
-    print_info("Runtime auto-detected — no config.yaml needed. Auth handled by ACP at runtime.")
+    print_info("Auth handled by cursor-agent ACP at runtime (no API key needed).")
 
-    # Register MCP server in ~/.cursor/mcp.json
+    # Register MCP server in ~/.cursor/mcp.json with explicit backend
     mcp_config_path = Path.home() / ".cursor" / "mcp.json"
     mcp_config_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -299,17 +302,30 @@ def _setup_cursor(cursor_agent_path: str) -> None:
         mcp_data = json.loads(mcp_config_path.read_text())
 
     mcp_data.setdefault("mcpServers", {})
-    if "ouroboros" not in mcp_data["mcpServers"]:
-        mcp_data["mcpServers"]["ouroboros"] = {
-            "command": "uvx",
-            "args": ["--from", "ouroboros-ai", "ouroboros", "mcp", "serve"],
-            "timeout": 600,
-        }
-        with mcp_config_path.open("w") as f:
-            json.dump(mcp_data, f, indent=2)
-        print_success("Registered MCP server in ~/.cursor/mcp.json")
-    else:
-        print_info("MCP server already registered in ~/.cursor/mcp.json")
+    mcp_data["mcpServers"]["ouroboros"] = {
+        "command": "uvx",
+        "args": ["--from", "ouroboros-ai", "ouroboros", "mcp", "serve"],
+        "env": {"OUROBOROS_LLM_BACKEND": "cursor"},
+        "timeout": 600,
+    }
+    with mcp_config_path.open("w") as f:
+        json.dump(mcp_data, f, indent=2)
+    print_success("Registered MCP server in ~/.cursor/mcp.json (backend: cursor)")
+
+    # Warn about duplicate if Claude Code plugin is also installed
+    plugin_registry = Path.home() / ".claude" / "plugins" / "installed_plugins.json"
+    if plugin_registry.exists():
+        try:
+            plugin_data = json.loads(plugin_registry.read_text())
+            if "ouroboros@ouroboros" in plugin_data.get("plugins", {}):
+                print_info("")
+                print_info("⚠ Claude Code plugin 'ouroboros' is also installed.")
+                print_info("  Cursor may show duplicate tools from both servers.")
+                print_info("  To avoid this, disable the plugin MCP in Cursor:")
+                print_info("  → Cursor Settings → Plugin MCP Servers → ouroboros → OFF")
+                print_info("  (Claude Code will still use its own plugin server separately.)")
+        except (OSError, ValueError):
+            pass
 
 
 def _setup_claude(claude_path: str) -> None:
